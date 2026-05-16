@@ -39,5 +39,4 @@ return [
         'base_uri' => env('OPENFOODFACTS_BASE_URI', 'https://world.openfoodfacts.org'),
         'user_agent' => env('OPENFOODFACTS_USER_AGENT', 'SmartInventoryAPI/1.0'),
     ],
-
 ];
