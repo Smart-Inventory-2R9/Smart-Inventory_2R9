@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\InventoryItem;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 
 class InventoryService
 {
@@ -20,6 +21,39 @@ class InventoryService
         return InventoryItem::with('foodProduct')
             ->where('user_id', $user->id)
             ->latest()
+            ->get();
+    }
+
+    public function expiringSoonForUser(User $user, int $days = 7)
+    {
+        $today = Carbon::today();
+        $until = Carbon::today()->addDays($days);
+
+        return InventoryItem::with('foodProduct')
+            ->where('user_id', $user->id)
+            ->whereNotNull('expiration_date')
+            ->whereDate('expiration_date', '>=', $today)
+            ->whereDate('expiration_date', '<=', $until)
+            ->orderBy('expiration_date')
+            ->get();
+    }
+
+    public function expiredForUser(User $user)
+    {
+        return InventoryItem::with('foodProduct')
+            ->where('user_id', $user->id)
+            ->whereNotNull('expiration_date')
+            ->whereDate('expiration_date', '<', Carbon::today())
+            ->orderBy('expiration_date')
+            ->get();
+    }
+
+    public function lowStockForUser(User $user)
+    {
+        return InventoryItem::with('foodProduct')
+            ->where('user_id', $user->id)
+            ->whereColumn('quantity', '<=', 'minimum_stock')
+            ->orderBy('quantity')
             ->get();
     }
 

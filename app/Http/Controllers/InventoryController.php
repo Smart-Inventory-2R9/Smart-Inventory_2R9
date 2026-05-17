@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ExpiringInventoryRequest;
 use App\Http\Requests\StoreInventoryItemRequest;
 use App\Http\Requests\UpdateInventoryItemRequest;
 use App\Services\InventoryService;
@@ -15,6 +16,30 @@ class InventoryController extends Controller
     {
         return response()->json([
             'data' => $this->inventoryService->listForUser($request->user()),
+        ]);
+    }
+
+    public function expiringSoon(ExpiringInventoryRequest $request)
+    {
+        $days = $request->validated('days') ?? 7;
+
+        return response()->json([
+            'days' => $days,
+            'data' => $this->inventoryService->expiringSoonForUser($request->user(), $days),
+        ]);
+    }
+
+    public function expired(Request $request)
+    {
+        return response()->json([
+            'data' => $this->inventoryService->expiredForUser($request->user()),
+        ]);
+    }
+
+    public function lowStock(Request $request)
+    {
+        return response()->json([
+            'data' => $this->inventoryService->lowStockForUser($request->user()),
         ]);
     }
 

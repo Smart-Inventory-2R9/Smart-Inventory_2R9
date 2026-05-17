@@ -58,4 +58,8 @@ return [
         'default_chat_id' => env('TELEGRAM_DEFAULT_CHAT_ID'),
     ],
 
+    'themealdb' => [
+        'base_uri' => env('THEMEALDB_BASE_URI', 'https://www.themealdb.com/api/json/v1'),
+        'api_key' => env('THEMEALDB_API_KEY', '1'),
+    ],
 ];

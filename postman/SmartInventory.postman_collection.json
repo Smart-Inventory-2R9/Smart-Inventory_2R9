@@ -1,0 +1,275 @@
+{
+  "info": {
+    "name": "SmartInventory API",
+    "description": "Postman collection for Smart Inventory API — endpoints for authentication, inventory CRUD, monitoring, reports, integrations, and alerts. Use the environment file to set `baseUrl` and `bearerToken`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
+            "description": "Health check endpoint. No auth required."
+          }
+        },
+        {
+          "name": "POST /register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"secret123\",\n  \"password_confirmation\": \"secret123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/register", "host": ["{{baseUrl}}"], "path": ["api","register"] },
+            "description": "Register a new user. Returns user object and token on success."
+          }
+        },
+        {
+          "name": "POST /login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"secret123\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/login", "host": ["{{baseUrl}}"], "path": ["api","login"] },
+            "description": "Authenticate user. Returns bearer token (set this into environment variable `bearerToken`)."
+          }
+        },
+        {
+          "name": "GET /me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/me", "host": ["{{baseUrl}}"], "path": ["api","me"] },
+            "description": "Return current authenticated user. Requires `Authorization` header."
+          }
+        },
+        {
+          "name": "POST /logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/logout", "host": ["{{baseUrl}}"], "path": ["api","logout"] },
+            "description": "Invalidate current token / logout."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory CRUD",
+      "item": [
+        {
+          "name": "POST /inventory",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearerToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Milk 1L\",\n  \"barcode\": \"0123456789012\",\n  \"quantity\": 10,\n  \"unit\": \"pcs\",\n  \"expiry_date\": \"2026-06-01\",\n  \"location\": \"Fridge\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/inventory", "host": ["{{baseUrl}}"], "path": ["api","inventory"] },
+            "description": "Create a new inventory item. Fields: name, barcode, quantity, unit, expiry_date (YYYY-MM-DD), location, optional metadata."
+          }
+        },
+        {
+          "name": "GET /inventory",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/inventory", "host": ["{{baseUrl}}"], "path": ["api","inventory"] },
+            "description": "List all inventory items. Supports optional query params: `q` (search), `page`, `per_page`, `sort`."
+          }
+        },
+        {
+          "name": "GET /inventory/{id}",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/inventory/123", "host": ["{{baseUrl}}"], "path": ["api","inventory","123"] },
+            "description": "Retrieve a single inventory item by `id`. Replace `123` with actual id."
+          }
+        },
+        {
+          "name": "PUT /inventory/{id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{bearerToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 8,\n  \"location\": \"Pantry\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/inventory/123", "host": ["{{baseUrl}}"], "path": ["api","inventory","123"] },
+            "description": "Update an inventory item. Provide only fields to change."
+          }
+        },
+        {
+          "name": "DELETE /inventory/{id}",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/inventory/123", "host": ["{{baseUrl}}"], "path": ["api","inventory","123"] },
+            "description": "Delete an inventory item by id."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Expiry & Stock Monitoring",
+      "item": [
+        {
+          "name": "GET /inventory/expiring-soon",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/inventory/expiring-soon", "host": ["{{baseUrl}}"], "path": ["api","inventory","expiring-soon"] },
+            "description": "Return items with expiry date within the configured threshold (e.g., next 7 days)."
+          }
+        },
+        {
+          "name": "GET /inventory/expired",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/inventory/expired", "host": ["{{baseUrl}}"], "path": ["api","inventory","expired"] },
+            "description": "Return items that are past their expiry date."
+          }
+        },
+        {
+          "name": "GET /inventory/low-stock",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/inventory/low-stock", "host": ["{{baseUrl}}"], "path": ["api","inventory","low-stock"] },
+            "description": "Return items with quantity below their `reorder_level` or configured threshold. Supports optional `threshold` query param."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "GET /reports/summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/reports/summary", "host": ["{{baseUrl}}"], "path": ["api","reports","summary"] },
+            "description": "High-level summary report (counts, soon-to-expire count, low-stock count). Optional date range query params: `from`, `to`."
+          }
+        },
+        {
+          "name": "GET /reports/stock-status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/reports/stock-status", "host": ["{{baseUrl}}"], "path": ["api","reports","stock-status"] },
+            "description": "Detailed stock status report. Supports filters like `location`, `category`, `low_stock_only=true`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "External Integrations",
+      "item": [
+        {
+          "name": "GET /open-food-facts/{barcode}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/open-food-facts/0123456789012", "host": ["{{baseUrl}}"], "path": ["api","open-food-facts","0123456789012"] },
+            "description": "Proxy to OpenFoodFacts by barcode. Returns product metadata if available."
+          }
+        },
+        {
+          "name": "POST /usda/lookup",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"query\": \"banana\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/usda/lookup", "host": ["{{baseUrl}}"], "path": ["api","usda","lookup"] },
+            "description": "Lookup nutrients or foods using USDA API (server-side proxy). Provide `query` or `ndbno`."
+          }
+        },
+        {
+          "name": "POST /mealdb/search",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"query\": \"chicken\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/mealdb/search", "host": ["{{baseUrl}}"], "path": ["api","mealdb","search"] },
+            "description": "Search MealDB by name."
+          }
+        },
+        {
+          "name": "POST /mealdb/filter-by-ingredient",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"ingredient\": \"egg\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/mealdb/filter-by-ingredient", "host": ["{{baseUrl}}"], "path": ["api","mealdb","filter-by-ingredient"] },
+            "description": "Filter MealDB recipes by ingredient."
+          }
+        },
+        {
+          "name": "POST /mealdb/lookup",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"52772\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/mealdb/lookup", "host": ["{{baseUrl}}"], "path": ["api","mealdb","lookup"] },
+            "description": "Lookup MealDB recipe by id."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Alerts & Notifications",
+      "item": [
+        {
+          "name": "POST /brevo/send-email",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"to\": \"user@example.com\",\n  \"subject\": \"Low stock alert\",\n  \"html\": \"<p>Your item is low on stock</p>\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/brevo/send-email", "host": ["{{baseUrl}}"], "path": ["api","brevo","send-email"] },
+            "description": "Send an email via Brevo (server-side integration). Provide `to`, `subject`, `html` or `text`."
+          }
+        },
+        {
+          "name": "POST /telegram/send-alert",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"chat_id\": \"12345678\",\n  \"message\": \"Low stock: Milk 1L (2 left)\"\n}" },
+            "url": { "raw": "{{baseUrl}}/api/telegram/send-alert", "host": ["{{baseUrl}}"], "path": ["api","telegram","send-alert"] },
+            "description": "Send a Telegram message via bot token (server-side)."
+          }
+        },
+        {
+          "name": "POST /alerts/low-stock",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearerToken}}" },{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"item_id\": 123,\n  \"threshold\": 5\n}" },
+            "url": { "raw": "{{baseUrl}}/api/alerts/low-stock", "host": ["{{baseUrl}}"], "path": ["api","alerts","low-stock"] },
+            "description": "Create a low-stock alert rule for an item (or trigger an alert). Requires auth."
+          }
+        },
+        {
+          "name": "POST /alerts/expiring-soon",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bearerToken}}" },{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"item_id\": 123,\n  \"days\": 7\n}" },
+            "url": { "raw": "{{baseUrl}}/api/alerts/expiring-soon", "host": ["{{baseUrl}}"], "path": ["api","alerts","expiring-soon"] },
+            "description": "Create an expiring-soon alert rule or trigger an immediate check. Requires auth."
+          }
+        }
+      ]
+    }
+  ],
+  "event": [],
+  "variable": []
+}
