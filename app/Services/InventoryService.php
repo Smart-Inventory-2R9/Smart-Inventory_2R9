@@ -49,18 +49,19 @@ class InventoryService
                     ->whereDate('expiration_date', '<', $today),
                 'expiring_soon' => $query->whereNotNull('expiration_date')
                     ->whereDate('expiration_date', '>=', $today)
-                    ->whereDate('expiration_date', '<=', Carbon::today()->addDays($filters['expires_within_days'] ?? 7)),
+                    ->whereDate('expiration_date', '<=', Carbon::today()->addDays((int) ($filters['expires_within_days'] ?? 7))),
             };
         } elseif (! empty($filters['expires_within_days'])) {
             $query->whereNotNull('expiration_date')
                 ->whereDate('expiration_date', '>=', Carbon::today())
-                ->whereDate('expiration_date', '<=', Carbon::today()->addDays($filters['expires_within_days']));
+                ->whereDate('expiration_date', '<=', Carbon::today()->addDays((int) $filters['expires_within_days']));
         }
 
         $sortBy = $filters['sort_by'] ?? 'created_at';
         $sortDirection = $filters['sort_direction'] ?? 'desc';
+        $perPage = $filters['per_page'] ?? 15;
 
-        return $query->orderBy($sortBy, $sortDirection)->get();
+        return $query->orderBy($sortBy, $sortDirection)->paginate($perPage)->withQueryString();
     }
 
     public function expiringSoonForUser(User $user, int $days = 7)

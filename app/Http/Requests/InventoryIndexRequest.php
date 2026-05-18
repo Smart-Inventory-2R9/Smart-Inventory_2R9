@@ -21,6 +21,7 @@ class InventoryIndexRequest extends FormRequest
             'expires_within_days' => ['sometimes', 'integer', 'min:1', 'max:365'],
             'sort_by' => ['sometimes', 'nullable', 'string', 'in:name,quantity,minimum_stock,expiration_date,created_at,updated_at'],
             'sort_direction' => ['sometimes', 'nullable', 'string', 'in:asc,desc'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ];
     }
 }

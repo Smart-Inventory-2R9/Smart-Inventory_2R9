@@ -1,6 +1,6 @@
 # SmartExpiryItem Backend README
 
-SmartExpiryItem is a Laravel backend API for smart inventory management, expiry tracking, food data lookup, reporting, and alert notifications.
+SmartExpiryItem is a Laravel backend API for smart inventory management, expiry tracking, food data lookup, reporting, admin management, and alert notifications.
 
 This project is backend-only. Testing is done through Postman.
 
@@ -20,29 +20,20 @@ Postman
 ```text
 Authentication with Sanctum tokens
 Role management
+Admin user management
 Inventory CRUD
+Inventory query filters
+Pagination
 Expiry tracking
 Low stock detection
 Reports
 External API gateway integrations
 Automatic alerts through Brevo and Telegram
-```
-
-## External Integrations
-
-The backend calls these external services through Laravel service classes:
-
-```text
-Open Food Facts API - barcode product lookup
-USDA FoodData Central API - food and nutrition lookup
-TheMealDB API - recipe search and meal lookup
-Brevo Email API - transactional email alerts
-Telegram Bot API - Telegram alert messages
+Notification history
+Activity logs / audit trail
 ```
 
 ## Gateway Pattern
-
-The project follows this backend style:
 
 ```text
 .env -> config/services.php -> service class -> controller -> validation request -> routes/api.php
@@ -50,45 +41,13 @@ The project follows this backend style:
 
 ## Setup
 
-Install dependencies:
-
 ```bash
 composer install
-```
-
-Copy environment file if needed:
-
-```bash
 copy .env.example .env
-```
-
-Generate app key:
-
-```bash
 php artisan key:generate
-```
-
-Run migrations:
-
-```bash
 php artisan migrate
-```
-
-Seed roles:
-
-```bash
 php artisan db:seed
-```
-
-Clear config cache after editing `.env`:
-
-```bash
 php artisan config:clear
-```
-
-Run local server:
-
-```bash
 php artisan serve
 ```
 
@@ -122,8 +81,6 @@ TELEGRAM_DEFAULT_CHAT_ID=your_chat_id
 
 ## Authentication
 
-Login or register first to get a Bearer token.
-
 Protected routes require:
 
 ```text
@@ -132,7 +89,7 @@ Accept: application/json
 Content-Type: application/json
 ```
 
-## Important API Routes
+## Important Routes
 
 ### Authentication
 
@@ -142,35 +99,43 @@ POST /api/register
 POST /api/login
 GET  /api/me
 POST /api/logout
-GET  /api/admin/test
 ```
 
-### Inventory CRUD
+### Inventory
 
 ```text
-GET    /api/inventory
+GET    /api/inventory?per_page=15
 POST   /api/inventory
 GET    /api/inventory/{id}
 PUT    /api/inventory/{id}
 DELETE /api/inventory/{id}
 ```
 
-### Expiry And Stock Monitoring
+### Inventory Filters
+
+```text
+GET /api/inventory?search=rice
+GET /api/inventory?status=low_stock
+GET /api/inventory?status=out_of_stock
+GET /api/inventory?status=in_stock
+GET /api/inventory?status=expired
+GET /api/inventory?status=expiring_soon&expires_within_days=30
+GET /api/inventory?location=Shelf A
+GET /api/inventory?barcode=3017620422003
+GET /api/inventory?sort_by=expiration_date&sort_direction=asc
+```
+
+### Monitoring And Reports
 
 ```text
 GET /api/inventory/expiring-soon?days=30
 GET /api/inventory/expired
 GET /api/inventory/low-stock
-```
-
-### Reports
-
-```text
 GET /api/reports/summary
 GET /api/reports/stock-status
 ```
 
-### External API Gateway Routes
+### External Integrations
 
 ```text
 GET  /api/open-food-facts/{barcode}
@@ -182,32 +147,26 @@ POST /api/brevo/send-email
 POST /api/telegram/send-alert
 ```
 
-### Automatic Alerts
+### Alerts And Logs
 
 ```text
 POST /api/alerts/low-stock
 POST /api/alerts/expiring-soon
+GET  /api/notifications?per_page=10
+GET  /api/notifications/{id}
+GET  /api/activity-logs?per_page=10
+GET  /api/activity-logs/{id}
 ```
 
-## Suggested Postman Demo Order
+### Admin
 
 ```text
-1. GET /api/health
-2. POST /api/register or POST /api/login
-3. Copy token into Postman variable
-4. GET /api/me
-5. GET /api/open-food-facts/3017620422003
-6. POST /api/usda/lookup
-7. POST /api/mealdb/search
-8. POST /api/telegram/send-alert
-9. POST /api/brevo/send-email
-10. POST /api/inventory
-11. GET /api/inventory
-12. GET /api/inventory/low-stock
-13. GET /api/inventory/expiring-soon?days=30
-14. GET /api/reports/summary
-15. POST /api/alerts/low-stock
-16. POST /api/logout
+GET    /api/admin/test
+GET    /api/admin/roles
+GET    /api/admin/users?per_page=10
+GET    /api/admin/users/{id}
+PUT    /api/admin/users/{id}/role
+DELETE /api/admin/users/{id}
 ```
 
 ## Sample Request Bodies
@@ -247,54 +206,12 @@ POST /api/alerts/expiring-soon
 }
 ```
 
-### TheMealDB Search
+### Update User Role
 
 ```json
 {
-  "query": "Arrabiata"
+  "role": "admin"
 }
-```
-
-### Telegram Alert
-
-```json
-{
-  "chat_id": "YOUR_CHAT_ID",
-  "message": "Smart Inventory test alert."
-}
-```
-
-### Brevo Email
-
-```json
-{
-  "to_email": "your_test_email@gmail.com",
-  "to_name": "Test User",
-  "subject": "Smart Inventory Test Email",
-  "html_content": "<h2>Smart Inventory Alert</h2><p>This is a test email.</p>"
-}
-```
-
-### Automatic Low Stock Alert
-
-```json
-{
-  "channels": ["telegram"],
-  "chat_id": "YOUR_CHAT_ID"
-}
-```
-
-## Common Status Codes
-
-```text
-200 OK - successful request
-201 Created - record created
-400 Bad Request - external API rejected request
-401 Unauthenticated - missing or invalid token
-403 Forbidden - user does not have permission
-404 Not Found - route or record not found
-422 Unprocessable Content - validation error
-500 Server Error - backend or configuration issue
 ```
 
 ## Verification Commands
@@ -307,10 +224,45 @@ php artisan config:clear
 
 ## Documentation
 
-Postman documentation is prepared in the `SmartExpiryItem` collection.
-
-A markdown API reference is also available in:
-
 ```text
 API_DOCUMENTATION.md
+BACKEND_README.md
+Postman SmartExpiryItem collection docs
+```
+---
+
+# Automated Test Coverage
+
+The backend includes Laravel automated tests for the main Postman-ready API behavior.
+
+Latest local result:
+
+```bash
+php artisan test
+```
+
+```text
+11 tests passed
+43 assertions
+```
+
+Covered areas:
+
+```text
+Authentication login, token usage, and current user profile
+Inventory creation and inventory query filtering
+Low-stock inventory status filtering
+Reports summary endpoint
+Notification history pagination
+Activity log pagination
+Admin-only access control
+Admin role assignment validation, including already-admin checks
+User soft delete and restore workflow
+```
+
+Test files:
+
+```text
+tests/Feature/CoreApiTest.php
+tests/Feature/ManagementApiTest.php
 ```

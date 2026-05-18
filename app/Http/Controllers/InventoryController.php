@@ -6,12 +6,16 @@ use App\Http\Requests\ExpiringInventoryRequest;
 use App\Http\Requests\InventoryIndexRequest;
 use App\Http\Requests\StoreInventoryItemRequest;
 use App\Http\Requests\UpdateInventoryItemRequest;
+use App\Services\ActivityLogService;
 use App\Services\InventoryService;
 use Illuminate\Http\Request;
 
 class InventoryController extends Controller
 {
-    public function __construct(private InventoryService $inventoryService) {}
+    public function __construct(
+        private InventoryService $inventoryService,
+        private ActivityLogService $activityLogService
+    ) {}
 
     public function index(InventoryIndexRequest $request)
     {
@@ -52,6 +56,14 @@ class InventoryController extends Controller
             $request->validated()
         );
 
+        $this->activityLogService->record(
+            $request->user(),
+            'created',
+            'inventory',
+            "Created inventory item: {$item->name}",
+            ['inventory_item_id' => $item->id, 'name' => $item->name]
+        );
+
         return response()->json([
             'message' => 'Inventory item created',
             'data' => $item,
@@ -73,6 +85,14 @@ class InventoryController extends Controller
             $request->validated()
         );
 
+        $this->activityLogService->record(
+            $request->user(),
+            'updated',
+            'inventory',
+            "Updated inventory item: {$item->name}",
+            ['inventory_item_id' => $item->id, 'changes' => $request->validated()]
+        );
+
         return response()->json([
             'message' => 'Inventory item updated',
             'data' => $item,
@@ -81,7 +101,16 @@ class InventoryController extends Controller
 
     public function destroy(Request $request, int $id)
     {
+        $item = $this->inventoryService->findForUser($request->user(), $id);
         $this->inventoryService->deleteForUser($request->user(), $id);
+
+        $this->activityLogService->record(
+            $request->user(),
+            'deleted',
+            'inventory',
+            "Deleted inventory item: {$item->name}",
+            ['inventory_item_id' => $item->id, 'name' => $item->name]
+        );
 
         return response()->json([
             'message' => 'Inventory item deleted',

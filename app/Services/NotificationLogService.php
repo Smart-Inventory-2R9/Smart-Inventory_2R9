@@ -8,12 +8,13 @@ use Illuminate\Support\Carbon;
 
 class NotificationLogService
 {
-    public function listForUser(User $user)
+    public function listForUser(User $user, int $perPage = 15)
     {
         return NotificationLog::where('user_id', $user->id)
             ->latest('sent_at')
             ->latest()
-            ->get();
+            ->paginate($perPage)
+            ->withQueryString();
     }
 
     public function findForUser(User $user, int $id): NotificationLog

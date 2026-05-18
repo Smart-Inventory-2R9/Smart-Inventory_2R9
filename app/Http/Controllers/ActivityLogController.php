@@ -3,17 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\PaginationRequest;
-use App\Services\NotificationLogService;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 
-class NotificationLogController extends Controller
+class ActivityLogController extends Controller
 {
-    public function __construct(private NotificationLogService $notificationLogService) {}
+    public function __construct(private ActivityLogService $activityLogService) {}
 
     public function index(PaginationRequest $request)
     {
         return response()->json(
-            $this->notificationLogService->listForUser(
+            $this->activityLogService->listForUser(
                 $request->user(),
                 $request->validated('per_page') ?? 15
             )
@@ -23,7 +23,7 @@ class NotificationLogController extends Controller
     public function show(Request $request, int $id)
     {
         return response()->json([
-            'data' => $this->notificationLogService->findForUser($request->user(), $id),
+            'data' => $this->activityLogService->findForUser($request->user(), $id),
         ]);
     }
 }
