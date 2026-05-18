@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BrevoController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\MealDbController;
+use App\Http\Controllers\NotificationLogController;
 use App\Http\Controllers\OpenFoodFactsController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TelegramController;
@@ -30,6 +31,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/alerts/low-stock', [AlertController::class, 'lowStock']);
     Route::post('/alerts/expiring-soon', [AlertController::class, 'expiringSoon']);
+
+    Route::get('/notifications', [NotificationLogController::class, 'index']);
+    Route::get('/notifications/{id}', [NotificationLogController::class, 'show']);
 
     Route::get('/open-food-facts/{barcode}', [OpenFoodFactsController::class, 'show']);
     Route::get('/inventory/expiring-soon', [InventoryController::class, 'expiringSoon']);

@@ -16,12 +16,51 @@ class InventoryService
         //
     }
 
-    public function listForUser(User $user)
+    public function listForUser(User $user, array $filters = [])
     {
-        return InventoryItem::with('foodProduct')
-            ->where('user_id', $user->id)
-            ->latest()
-            ->get();
+        $query = InventoryItem::with('foodProduct')
+            ->where('user_id', $user->id);
+
+        if (! empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('barcode', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%");
+            });
+        }
+
+        if (! empty($filters['location'])) {
+            $query->where('location', 'like', "%{$filters['location']}%");
+        }
+
+        if (! empty($filters['barcode'])) {
+            $query->where('barcode', $filters['barcode']);
+        }
+
+        if (! empty($filters['status'])) {
+            $today = Carbon::today();
+
+            match ($filters['status']) {
+                'low_stock' => $query->whereColumn('quantity', '<=', 'minimum_stock'),
+                'out_of_stock' => $query->where('quantity', '<=', 0),
+                'in_stock' => $query->whereColumn('quantity', '>', 'minimum_stock'),
+                'expired' => $query->whereNotNull('expiration_date')
+                    ->whereDate('expiration_date', '<', $today),
+                'expiring_soon' => $query->whereNotNull('expiration_date')
+                    ->whereDate('expiration_date', '>=', $today)
+                    ->whereDate('expiration_date', '<=', Carbon::today()->addDays($filters['expires_within_days'] ?? 7)),
+            };
+        } elseif (! empty($filters['expires_within_days'])) {
+            $query->whereNotNull('expiration_date')
+                ->whereDate('expiration_date', '>=', Carbon::today())
+                ->whereDate('expiration_date', '<=', Carbon::today()->addDays($filters['expires_within_days']));
+        }
+
+        $sortBy = $filters['sort_by'] ?? 'created_at';
+        $sortDirection = $filters['sort_direction'] ?? 'desc';
+
+        return $query->orderBy($sortBy, $sortDirection)->get();
     }
 
     public function expiringSoonForUser(User $user, int $days = 7)

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ExpiringInventoryRequest;
+use App\Http\Requests\InventoryIndexRequest;
 use App\Http\Requests\StoreInventoryItemRequest;
 use App\Http\Requests\UpdateInventoryItemRequest;
 use App\Services\InventoryService;
@@ -12,10 +13,11 @@ class InventoryController extends Controller
 {
     public function __construct(private InventoryService $inventoryService) {}
 
-    public function index(Request $request)
+    public function index(InventoryIndexRequest $request)
     {
         return response()->json([
-            'data' => $this->inventoryService->listForUser($request->user()),
+            'filters' => $request->validated(),
+            'data' => $this->inventoryService->listForUser($request->user(), $request->validated()),
         ]);
     }
 

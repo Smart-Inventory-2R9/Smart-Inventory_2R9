@@ -10,7 +10,8 @@ class AlertService
     public function __construct(
         private InventoryService $inventoryService,
         private BrevoService $brevoService,
-        private TelegramService $telegramService
+        private TelegramService $telegramService,
+        private NotificationLogService $notificationLogService
     ) {}
 
     public function sendLowStockAlert(User $user, array $data): array
@@ -30,6 +31,8 @@ class AlertService
         return [
             'message' => 'Low stock alert processed.',
             'alerts_sent' => $this->sendToChannels(
+                $user,
+                'low_stock',
                 $data,
                 $data['subject'] ?? 'Smart Inventory Low Stock Alert',
                 $message
@@ -57,6 +60,8 @@ class AlertService
             'message' => 'Expiring soon alert processed.',
             'days' => $days,
             'alerts_sent' => $this->sendToChannels(
+                $user,
+                'expiring_soon',
                 $data,
                 $data['subject'] ?? 'Smart Inventory Expiry Alert',
                 $message
@@ -65,7 +70,7 @@ class AlertService
         ];
     }
 
-    private function sendToChannels(array $data, string $subject, string $message): array
+    private function sendToChannels(User $user, string $type, array $data, string $subject, string $message): array
     {
         $results = [];
         $channels = $data['channels'];
@@ -79,9 +84,22 @@ class AlertService
                 'html_content' => nl2br(e($message)),
             ]);
 
+            $body = $response->json();
+            $log = $this->notificationLogService->create($user, [
+                'type' => $type,
+                'channel' => 'email',
+                'recipient' => $data['to_email'],
+                'subject' => $subject,
+                'message' => $message,
+                'status_code' => $response->status(),
+                'status' => $response->successful() ? 'sent' : 'failed',
+                'response' => $body,
+            ]);
+
             $results['email'] = [
                 'status' => $response->status(),
-                'body' => $response->json(),
+                'body' => $body,
+                'notification_log_id' => $log->id,
             ];
         }
 
@@ -95,10 +113,22 @@ class AlertService
             }
 
             $response = $this->telegramService->sendAlert($payload);
+            $body = $response->json();
+            $log = $this->notificationLogService->create($user, [
+                'type' => $type,
+                'channel' => 'telegram',
+                'recipient' => $data['chat_id'] ?? config('services.telegram.default_chat_id'),
+                'subject' => $subject,
+                'message' => $message,
+                'status_code' => $response->status(),
+                'status' => $response->successful() ? 'sent' : 'failed',
+                'response' => $body,
+            ]);
 
             $results['telegram'] = [
                 'status' => $response->status(),
-                'body' => $response->json(),
+                'body' => $body,
+                'notification_log_id' => $log->id,
             ];
         }
 
