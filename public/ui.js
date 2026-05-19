@@ -1,5 +1,3 @@
-import './bootstrap';
-
 const root = document.getElementById('app');
 const apiBase = root.dataset.apiBase;
 const state = {
