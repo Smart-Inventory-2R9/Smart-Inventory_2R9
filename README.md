@@ -1,59 +1,185 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SmartExpiryItem Backend API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+SmartExpiryItem is a Laravel backend API for smart inventory management. The project focuses on API-first development and Postman testing before UI work.
 
-## About Laravel
+## Current Phase
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Phase 4: Testing, documentation, and backend cleanup.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+The main backend features are already implemented. Current work focuses on making the project clean for demo, handoff, and future frontend development.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Backend Scope
 
-## Learning Laravel
+The API supports:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+- Laravel Sanctum authentication
+- Role-based access control
+- Admin-only user management
+- Inventory CRUD
+- Inventory search, filtering, sorting, and pagination
+- Expiry and low-stock monitoring
+- Report endpoints
+- External food API integrations
+- Brevo email alerts
+- Telegram bot alerts
+- Notification history
+- Activity logs
+- Soft delete and restore workflows
+- Automated feature tests
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Gateway Pattern
 
-## Laravel Sponsors
+This project follows the API gateway style:
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```text
+.env
+-> config/services.php
+-> app/Services
+-> app/Http/Controllers
+-> app/Http/Requests
+-> routes/api.php
+-> Postman testing/documentation
+```
 
-### Premium Partners
+External API credentials stay in `.env`, are loaded through `config/services.php`, then used by service classes. Controllers stay thin and delegate work to services. Request validation runs before service calls.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## External Integrations
 
-## Contributing
+Configured integrations:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- Open Food Facts
+- USDA FoodData Central
+- TheMealDB
+- Brevo Email API
+- Telegram Bot API
 
-## Code of Conduct
+Postman calls the Laravel backend first. Laravel then calls the external APIs through service classes.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```text
+Postman -> Laravel API -> Service Class -> External API
+```
 
-## Security Vulnerabilities
+## Main API Areas
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```text
+01 Authentication
+02 Inventory CRUD
+03 Expiry & Stock Monitoring
+04 Reports
+05 External Integrations
+06 Alerts & Notifications
+07 Notification History
+08 Activity Logs
+09 Admin User Management
+10 Inventory Query String Filters
+```
 
-## License
+## Setup
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Install dependencies:
+
+```bash
+composer install
+npm install
+```
+
+Create environment file and key if needed:
+
+```bash
+copy .env.example .env
+php artisan key:generate
+```
+
+Run migrations and seed demo data:
+
+```bash
+php artisan migrate
+php artisan db:seed --force
+```
+
+Start the API server:
+
+```bash
+php artisan serve
+```
+
+Local base URL:
+
+```text
+http://127.0.0.1:8000
+```
+
+## Demo Users
+
+Seeded accounts:
+
+```text
+admin@example.com / password123
+test@example.com / password123
+```
+
+Use `admin@example.com` for admin-only routes.
+Use `test@example.com` for normal inventory testing.
+
+## Important Commands
+
+List API routes:
+
+```bash
+php artisan route:list --path=api
+```
+
+Run tests:
+
+```bash
+php artisan test
+```
+
+Current verified test result:
+
+```text
+11 tests passed
+43 assertions
+```
+
+Run seeder:
+
+```bash
+php artisan db:seed --force
+```
+
+## Documentation Files
+
+Detailed backend documents:
+
+```text
+API_DOCUMENTATION.md
+BACKEND_README.md
+POSTMAN_DEMO_GUIDE.md
+postman/README.md
+```
+
+## Postman Notes
+
+Use Bearer token authentication for protected routes.
+
+Recommended collection variables:
+
+```text
+laravel_local = http://127.0.0.1:8000
+authToken = token from login response
+inventoryId = existing inventory item ID
+barcode = 3017620422003
+```
+
+## Current Status
+
+Verified working:
+
+```text
+php artisan route:list --path=api
+php artisan db:seed --force
+php artisan test
+```
+
+The backend is ready for Postman demo and continued cleanup before UI development.
