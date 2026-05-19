@@ -8,6 +8,7 @@ const state = {
     isAdmin: false,
     page: 'dashboard',
     inventoryItems: [],
+    sidebarHidden: localStorage.getItem('smartExpirySidebarHidden') === 'true',
 };
 
 const navItems = [
@@ -177,10 +178,23 @@ async function checkAdmin() {
 function renderShell() {
     const nav = navItems.filter(([id]) => id !== 'admin' || state.isAdmin).map(([id, label]) => `<button class="nav-btn ${state.page === id ? 'active' : ''}" data-page="${id}" type="button">${label}</button>`).join('');
     const title = navItems.find(([id]) => id === state.page)?.[1] || 'Dashboard';
-    root.innerHTML = `<main class="shell"><aside class="sidebar"><div class="brand-row"><div class="brand-mark">SI</div><div><h1 class="brand-title">SmartExpiryItem</h1><p class="brand-subtitle">${state.isAdmin ? 'Admin' : 'Staff'}</p></div></div><nav class="nav-list">${nav}</nav><div class="sidebar-footer"><div class="user-chip">${esc(state.user?.name || 'User')}<br>${esc(state.user?.email || '')}</div><button id="logoutButton" class="btn small" type="button">Logout</button></div></aside><section class="main"><header class="topbar"><div><h2 class="page-title">${esc(title)}</h2><p class="page-subtitle">SmartExpiryItem</p></div><button class="btn" data-refresh type="button">Refresh</button></header><div id="view" class="view"><div class="loading-state">Loading</div></div></section></main>`;
+    root.innerHTML = `<main class="shell ${state.sidebarHidden ? 'sidebar-hidden' : ''}"><aside class="sidebar"><div class="brand-row"><div class="brand-mark">SI</div><div><h1 class="brand-title">SmartExpiryItem</h1><p class="brand-subtitle">${state.isAdmin ? 'Admin' : 'Staff'}</p></div></div><nav class="nav-list">${nav}</nav><div class="sidebar-footer"><div class="user-chip">${esc(state.user?.name || 'User')}<br>${esc(state.user?.email || '')}</div><button id="logoutButton" class="btn small" type="button">Logout</button></div></aside><section class="main"><header class="topbar"><div><h2 class="page-title">${esc(title)}</h2><p class="page-subtitle">SmartExpiryItem</p></div><div class="topbar-actions"><button class="btn" data-sidebar-toggle type="button" aria-expanded="${state.sidebarHidden ? 'false' : 'true'}">${state.sidebarHidden ? 'Show menu' : 'Hide menu'}</button><button class="btn" data-refresh type="button">Refresh</button></div></header><div id="view" class="view"><div class="loading-state">Loading</div></div></section></main>`;
     root.querySelectorAll('[data-page]').forEach((button) => button.addEventListener('click', () => loadPage(button.dataset.page)));
+    root.querySelector('[data-sidebar-toggle]').addEventListener('click', toggleSidebar);
     root.querySelector('[data-refresh]').addEventListener('click', () => loadPage(state.page));
     root.querySelector('#logoutButton').addEventListener('click', () => logout());
+}
+
+function toggleSidebar() {
+    state.sidebarHidden = !state.sidebarHidden;
+    localStorage.setItem('smartExpirySidebarHidden', String(state.sidebarHidden));
+    const shell = root.querySelector('.shell');
+    if (shell) shell.classList.toggle('sidebar-hidden', state.sidebarHidden);
+
+    root.querySelectorAll('[data-sidebar-toggle]').forEach((button) => {
+        button.textContent = state.sidebarHidden ? 'Show menu' : 'Hide menu';
+        button.setAttribute('aria-expanded', state.sidebarHidden ? 'false' : 'true');
+    });
 }
 
 async function logout(callApi = true) {

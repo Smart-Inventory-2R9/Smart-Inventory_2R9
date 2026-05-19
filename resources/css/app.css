@@ -266,6 +266,11 @@ textarea:focus {
     min-height: 100vh;
     display: grid;
     grid-template-columns: 264px 1fr;
+    transition: grid-template-columns 0.18s ease;
+}
+
+.shell.sidebar-hidden {
+    grid-template-columns: 0 minmax(0, 1fr);
 }
 
 .sidebar {
@@ -278,6 +283,19 @@ textarea:focus {
     height: 100vh;
     position: sticky;
     top: 0;
+    overflow: hidden;
+    transition:
+        opacity 0.18s ease,
+        padding 0.18s ease,
+        transform 0.18s ease;
+}
+
+.shell.sidebar-hidden .sidebar {
+    opacity: 0;
+    padding-left: 0;
+    padding-right: 0;
+    pointer-events: none;
+    transform: translateX(-100%);
 }
 
 .sidebar .brand-row {
@@ -354,6 +372,13 @@ textarea:focus {
     z-index: 10;
     background: var(--bg);
     border-bottom: 1px solid rgba(217, 224, 214, 0.7);
+}
+
+.topbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
 }
 
 .page-title {
