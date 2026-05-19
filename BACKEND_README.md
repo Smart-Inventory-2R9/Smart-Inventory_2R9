@@ -164,9 +164,11 @@ GET  /api/activity-logs/{id}
 GET    /api/admin/test
 GET    /api/admin/roles
 GET    /api/admin/users?per_page=10
+GET    /api/admin/users/deleted
 GET    /api/admin/users/{id}
 PUT    /api/admin/users/{id}/role
 DELETE /api/admin/users/{id}
+PUT    /api/admin/users/{id}/restore
 ```
 
 ## Sample Request Bodies

@@ -370,6 +370,7 @@ low stock alert triggered
 expiring soon alert triggered
 admin user role updated
 admin user deleted
+admin user restored
 ```
 
 ---
@@ -382,9 +383,11 @@ Admin routes require an admin Bearer token.
 GET    /admin/test
 GET    /admin/roles
 GET    /admin/users?per_page=10
+GET    /admin/users/deleted
 GET    /admin/users/{id}
 PUT    /admin/users/{id}/role
 DELETE /admin/users/{id}
+PUT    /admin/users/{id}/restore
 ```
 
 ## PUT /admin/users/{id}/role
