@@ -2,10 +2,12 @@
 
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AdminRoleController;
+use App\Http\Controllers\AdminTestController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AlertController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BrevoController;
+use App\Http\Controllers\HealthController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\MealDbController;
 use App\Http\Controllers\NotificationLogController;
@@ -15,12 +17,7 @@ use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\UsdaController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/health', function () {
-    return response()->json([
-        'status' => 'ok',
-        'app' => config('app.name'),
-    ]);
-});
+Route::get('/health', HealthController::class);
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -57,11 +54,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
-    Route::get('/admin/test', function () {
-        return response()->json([
-            'message' => 'Admin access granted',
-        ]);
-    });
+    Route::get('/admin/test', AdminTestController::class);
 
     Route::get('/admin/roles', [AdminRoleController::class, 'index']);
     Route::get('/admin/users/deleted', [AdminUserController::class, 'deleted']);
