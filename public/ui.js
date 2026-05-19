@@ -1,5 +1,11 @@
 const root = document.getElementById('app');
-const apiBase = root.dataset.apiBase;
+if (!root) {
+    throw new Error('SmartExpiryItem root element was not found.');
+}
+
+root.innerHTML = '<main class="boot-screen"><div class="loading-state">Loading SmartExpiryItem</div></main>';
+
+const apiBase = root.dataset.apiBase || `${window.location.origin}/api`;
 const state = {
     token: localStorage.getItem('smartExpiryToken') || '',
     user: null,
@@ -551,19 +557,29 @@ async function restoreUser(id) {
 }
 
 async function boot() {
-    if (!state.token) {
-        renderAuth();
-        return;
-    }
     try {
+        if (!state.token) {
+            renderAuth();
+            return;
+        }
+
         const profile = await api('/me');
         state.user = profile.user;
         state.isAdmin = await checkAdmin();
         renderShell();
         loadPage('dashboard');
-    } catch (_) {
-        logout(false);
+    } catch (error) {
+        console.error('SmartExpiryItem boot failed:', error);
+        state.token = '';
+        state.user = null;
+        state.isAdmin = false;
+        localStorage.removeItem('smartExpiryToken');
+        renderAuth();
+        toast(errorMessage(error), 'error');
     }
 }
 
-boot();
+boot().catch((error) => {
+    console.error('SmartExpiryItem fatal startup error:', error);
+    root.innerHTML = `<main class="auth-layout"><section class="auth-panel"><div class="brand-row"><div class="brand-mark">SI</div><div><h1 class="brand-title">SmartExpiryItem</h1><p class="brand-subtitle">Startup failed</p></div></div><div class="empty-state">${esc(errorMessage(error))}</div></section></main>`;
+});

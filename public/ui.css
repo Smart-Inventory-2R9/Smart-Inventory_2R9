@@ -74,6 +74,13 @@ textarea:focus-visible {
     grid-template-columns: minmax(320px, 430px) 1fr;
 }
 
+.boot-screen {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background: var(--bg);
+}
+
 .auth-panel {
     background: var(--surface);
     border-right: 1px solid var(--line);
