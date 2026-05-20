@@ -7,15 +7,15 @@
     <title>{{ config('app.name', 'SmartExpiryItem') }}</title>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('ui.css') }}?v={{ filemtime(public_path('ui.css')) }}">
+    <link rel="stylesheet" href="/ui.css?v={{ filemtime(public_path('ui.css')) }}">
 </head>
 <body>
-    <div id="app" data-api-base="{{ url('/api') }}">
+    <div id="app" data-api-base="/api">
         <main class="boot-screen">
             <div class="loading-state">Loading SmartExpiryItem</div>
         </main>
     </div>
-    <script src="{{ asset('ui.js') }}?v={{ filemtime(public_path('ui.js')) }}" defer></script>
+    <script src="/ui.js?v={{ filemtime(public_path('ui.js')) }}" defer></script>
     <script>
         window.setTimeout(function () {
             var app = document.getElementById('app');
