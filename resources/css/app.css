@@ -185,7 +185,8 @@ textarea:focus-visible {
 }
 
 .field span,
-.field label {
+.field label,
+.field-label {
     font-size: 0.82rem;
     font-weight: 700;
     color: var(--muted);
@@ -565,6 +566,27 @@ tr:last-child td {
     max-height: 420px;
     font-size: 0.84rem;
     line-height: 1.55;
+}
+
+.html-preview-wrap {
+    display: grid;
+    gap: 6px;
+}
+
+.html-preview {
+    min-height: 84px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 12px;
+    overflow: auto;
+}
+
+.html-preview.empty {
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+    background: var(--surface-muted);
 }
 
 .empty-state,

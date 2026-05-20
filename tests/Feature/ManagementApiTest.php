@@ -7,6 +7,7 @@ use App\Models\NotificationLog;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class ManagementApiTest extends TestCase
@@ -63,6 +64,71 @@ class ManagementApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.channel', 'telegram')
             ->assertJsonPath('per_page', 5);
+    }
+
+    public function test_brevo_email_send_creates_sent_notification_log(): void
+    {
+        Http::fake([
+            '*' => Http::response(['messageId' => 'brevo-test-message'], 201),
+        ]);
+
+        $user = $this->createUserWithRole('staff');
+        $html = '<p style="background-color:blue;">Test Message</p>';
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson('/api/brevo/send-email', [
+                'to_email' => 'customer@example.com',
+                'to_name' => 'Customer',
+                'subject' => 'SmartExpiryItem Test',
+                'html_content' => $html,
+            ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Email sent successfully.')
+            ->assertJsonPath('status', 'sent')
+            ->assertJsonPath('notification.type', 'brevo_email')
+            ->assertJsonPath('notification.channel', 'email')
+            ->assertJsonPath('notification.recipient', 'customer@example.com')
+            ->assertJsonPath('notification.message', $html);
+
+        $this->assertDatabaseHas('notification_logs', [
+            'user_id' => $user->id,
+            'type' => 'brevo_email',
+            'channel' => 'email',
+            'status' => 'sent',
+            'recipient' => 'customer@example.com',
+            'message' => $html,
+        ]);
+    }
+
+    public function test_brevo_email_failure_creates_failed_notification_log(): void
+    {
+        Http::fake([
+            '*' => Http::response(['message' => 'Invalid API key'], 401),
+        ]);
+
+        $user = $this->createUserWithRole('staff');
+        $html = '<p style="background-color:red;">Failed Message</p>';
+
+        $this->actingAs($user, 'sanctum')
+            ->postJson('/api/brevo/send-email', [
+                'to_email' => 'customer@example.com',
+                'subject' => 'SmartExpiryItem Failure Test',
+                'html_content' => $html,
+            ])
+            ->assertStatus(502)
+            ->assertJsonPath('message', 'Email sending failed.')
+            ->assertJsonPath('status', 'failed')
+            ->assertJsonPath('external_status', 401);
+
+        $this->assertDatabaseHas('notification_logs', [
+            'user_id' => $user->id,
+            'type' => 'brevo_email',
+            'channel' => 'email',
+            'status' => 'failed',
+            'status_code' => 401,
+            'recipient' => 'customer@example.com',
+            'message' => $html,
+        ]);
     }
 
     public function test_activity_logs_returns_paginated_logs(): void

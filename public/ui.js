@@ -1,3 +1,4 @@
+
 const root = document.getElementById('app');
 if (!root) {
     throw new Error('SmartExpiryItem root element was not found.');
@@ -242,11 +243,11 @@ function smallTable(title, headers, rows) {
 async function renderDashboard() {
     const [health, summary, lowStock, expiring] = await Promise.all([api('/health'), api('/reports/summary'), api('/inventory/low-stock'), api('/inventory/expiring-soon?days=30')]);
     const s = summary.data || {};
-    setView(`<section class="metrics">${metric('API', health.status || 'ok')}${metric('Role', state.isAdmin ? 'Admin' : 'Staff')}${metric('Total items', num(s.total_items))}${metric('Low stock', num(s.low_stock_count))}${metric('Expired', num(s.expired_count))}${metric('Expiring soon', num(s.expiring_soon_count))}</section><section class="grid-2">${smallTable('Session', ['Field', 'Value'], [['User', state.user?.name || '-'], ['Email', state.user?.email || '-'], ['App', health.app || 'SmartExpiryItem']])}${smallTable('Low Stock', ['Name', 'Qty', 'Minimum'], (lowStock.data || []).map((i) => [i.name, i.quantity, i.minimum_stock]))}${smallTable('Expiring Soon', ['Name', 'Expires', 'Qty'], (expiring.data || []).map((i) => [i.name, i.expiration_date || '-', i.quantity]))}</section>`);
+    setView(`<section class="metrics">${metric('API', health.status || 'ok')}${metric('Role', state.isAdmin ? 'Admin' : 'Staff')}${metric('Total items', num(s.total_items))}${metric('Low stock', num(s.low_stock_count))}${metric('Expired', num(s.expired_count))}${metric('Expiring soon', num(s.expiring_soon_count))}</section><section class="grid-2">${smallTable('Session', ['Field', 'Value'], [['User', state.user?.name || '-'], ['Email', state.user?.email || '-'], ['App', health.app || 'SmartExpiryItem']])}${smallTable('Low Stock', ['Name', 'Quantity', 'Unit', 'Minimum'], (lowStock.data || []).map((i) => [i.name, i.quantity, i.unit || '-', i.minimum_stock]))}${smallTable('Expiring Soon', ['Name', 'Expires', 'Quantity', 'Unit'], (expiring.data || []).map((i) => [i.name, i.expiration_date || '-', i.quantity, i.unit || '-']))}</section>`);
 }
 function itemRows(items) {
-    if (!items.length) return '<tr><td colspan="8" class="empty-state">No records</td></tr>';
-    return items.map((item) => `<tr><td>${esc(item.name)}</td><td>${esc(item.barcode || '-')}</td><td>${num(item.quantity)} ${esc(item.unit || '')}</td><td>${num(item.minimum_stock)}</td><td>${esc(item.expiration_date || '-')}</td><td>${esc(item.location || '-')}</td><td>${inventoryStatusBadge(item)}</td><td><div class="btn-row"><button class="btn small" data-edit="${esc(item.id)}" type="button">Edit</button><button class="btn small danger" data-delete="${esc(item.id)}" type="button">Delete</button></div></td></tr>`).join('');
+    if (!items.length) return '<tr><td colspan="9" class="empty-state">No records</td></tr>';
+    return items.map((item) => `<tr><td>${esc(item.name)}</td><td>${esc(item.barcode || '-')}</td><td>${num(item.quantity)}</td><td>${esc(item.unit || '-')}</td><td>${num(item.minimum_stock)}</td><td>${esc(item.expiration_date || '-')}</td><td>${esc(item.location || '-')}</td><td>${inventoryStatusBadge(item)}</td><td><div class="btn-row"><button class="btn small" data-edit="${esc(item.id)}" type="button">Edit</button><button class="btn small danger" data-delete="${esc(item.id)}" type="button">Delete</button></div></td></tr>`).join('');
 }
 
 function inventoryStatusBadge(item) {
@@ -258,7 +259,7 @@ function inventoryStatusBadge(item) {
 }
 
 async function renderInventory() {
-    setView(`<section class="panel"><div class="panel-header"><h3 id="itemFormTitle" class="panel-title">Create Item</h3></div><div class="panel-body"><form id="itemForm" class="form-grid"><input name="id" type="hidden"><label class="field span-2"><span>Name</span><input class="input" name="name" required></label><label class="field"><span>Barcode</span><input class="input" name="barcode"></label><label class="field"><span>Quantity</span><input class="input" name="quantity" type="number" min="0" required></label><label class="field"><span>Unit</span><input class="input" name="unit"></label><label class="field"><span>Minimum</span><input class="input" name="minimum_stock" type="number" min="0"></label><label class="field"><span>Expiry</span><input class="input" name="expiration_date" type="date"></label><label class="field"><span>Location</span><input class="input" name="location"></label><div class="span-4 btn-row"><button id="itemSubmitButton" class="btn primary" type="submit">Save Item</button><button id="itemResetButton" class="btn" type="button">Clear</button></div></form></div></section><section class="panel"><div class="panel-header"><h3 class="panel-title">Inventory Items</h3><form id="searchForm" class="btn-row"><input class="input" name="search" placeholder="Search"><select name="status"><option value="">All status</option><option value="low_stock">Low stock</option><option value="out_of_stock">Out of stock</option><option value="in_stock">In stock</option><option value="expired">Expired</option><option value="expiring_soon">Expiring soon</option></select><button class="btn" type="submit">Filter</button></form></div><div id="inventoryTable" class="panel-body table-wrap"><div class="loading-state">Loading</div></div></section>`);
+    setView(`<section class="panel"><div class="panel-header"><h3 id="itemFormTitle" class="panel-title">Create Item</h3></div><div class="panel-body"><form id="itemForm" class="form-grid"><input name="id" type="hidden"><label class="field span-2"><span>Name</span><input class="input" name="name" required></label><label class="field"><span>Barcode</span><input class="input" name="barcode"></label><label class="field"><span>Quantity</span><input class="input" name="quantity" type="number" min="0" step="1" inputmode="numeric" required></label><label class="field"><span>Unit</span><input class="input" name="unit" placeholder="kg, pcs, cans"></label><label class="field"><span>Minimum</span><input class="input" name="minimum_stock" type="number" min="0" step="1" inputmode="numeric"></label><label class="field"><span>Expiry</span><input class="input" name="expiration_date" type="date"></label><label class="field"><span>Location</span><input class="input" name="location"></label><div class="span-4 btn-row"><button id="itemSubmitButton" class="btn primary" type="submit">Save Item</button><button id="itemResetButton" class="btn" type="button">Clear</button></div></form></div></section><section class="panel"><div class="panel-header"><h3 class="panel-title">Inventory Items</h3><form id="searchForm" class="btn-row"><input class="input" name="search" placeholder="Search"><select name="status"><option value="">All status</option><option value="low_stock">Low stock</option><option value="out_of_stock">Out of stock</option><option value="in_stock">In stock</option><option value="expired">Expired</option><option value="expiring_soon">Expiring soon</option></select><button class="btn" type="submit">Filter</button></form></div><div id="inventoryTable" class="panel-body table-wrap"><div class="loading-state">Loading</div></div></section>`);
     document.getElementById('itemForm').addEventListener('submit', async (event) => {
         event.preventDefault();
         try {
@@ -286,7 +287,7 @@ async function loadInventory(query = '') {
     const response = await api(`/inventory${query}`);
     const items = response.data?.data || [];
     state.inventoryItems = items;
-    document.getElementById('inventoryTable').innerHTML = `<table><thead><tr><th>Name</th><th>Barcode</th><th>Quantity</th><th>Minimum</th><th>Expiry</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead><tbody>${itemRows(items)}</tbody></table>`;
+    document.getElementById('inventoryTable').innerHTML = `<table><thead><tr><th>Name</th><th>Barcode</th><th>Quantity</th><th>Unit</th><th>Minimum</th><th>Expiry</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead><tbody>${itemRows(items)}</tbody></table>`;
     document.querySelectorAll('[data-edit]').forEach((button) => button.addEventListener('click', () => editInventoryItem(button.dataset.edit)));
     document.querySelectorAll('[data-delete]').forEach((button) => button.addEventListener('click', () => deleteInventoryItem(button.dataset.delete)));
 }
@@ -330,8 +331,8 @@ async function deleteInventoryItem(id) {
 }
 
 function monitoringRows(items) {
-    if (!items.length) return '<tr><td colspan="5" class="empty-state">No records</td></tr>';
-    return items.map((item) => `<tr><td>${esc(item.name)}</td><td>${num(item.quantity)} ${esc(item.unit || '')}</td><td>${num(item.minimum_stock)}</td><td>${esc(item.expiration_date || '-')}</td><td>${esc(item.location || '-')}</td></tr>`).join('');
+    if (!items.length) return '<tr><td colspan="6" class="empty-state">No records</td></tr>';
+    return items.map((item) => `<tr><td>${esc(item.name)}</td><td>${num(item.quantity)}</td><td>${esc(item.unit || '-')}</td><td>${num(item.minimum_stock)}</td><td>${esc(item.expiration_date || '-')}</td><td>${esc(item.location || '-')}</td></tr>`).join('');
 }
 
 async function renderMonitoring() {
@@ -341,7 +342,7 @@ async function renderMonitoring() {
         api('/inventory/low-stock'),
     ]);
 
-    setView(`<section class="metrics">${metric('Expiring in 30 days', num((expiring.data || []).length))}${metric('Expired', num((expired.data || []).length))}${metric('Low stock', num((lowStock.data || []).length))}${metric('Needs action', num((expired.data || []).length + (lowStock.data || []).length))}</section><section class="grid-3">${smallTable('Expiring Soon', ['Name', 'Qty', 'Minimum', 'Expires', 'Location'], (expiring.data || []).map((i) => [i.name, `${i.quantity} ${i.unit || ''}`, i.minimum_stock, i.expiration_date || '-', i.location || '-']))}${smallTable('Expired', ['Name', 'Qty', 'Minimum', 'Expired', 'Location'], (expired.data || []).map((i) => [i.name, `${i.quantity} ${i.unit || ''}`, i.minimum_stock, i.expiration_date || '-', i.location || '-']))}${smallTable('Low Stock', ['Name', 'Qty', 'Minimum', 'Expires', 'Location'], (lowStock.data || []).map((i) => [i.name, `${i.quantity} ${i.unit || ''}`, i.minimum_stock, i.expiration_date || '-', i.location || '-']))}</section>`);
+    setView(`<section class="metrics">${metric('Expiring in 30 days', num((expiring.data || []).length))}${metric('Expired', num((expired.data || []).length))}${metric('Low stock', num((lowStock.data || []).length))}${metric('Needs action', num((expired.data || []).length + (lowStock.data || []).length))}</section><section class="grid-3">${smallTable('Expiring Soon', ['Name', 'Quantity', 'Unit', 'Minimum', 'Expires', 'Location'], (expiring.data || []).map((i) => [i.name, i.quantity, i.unit || '-', i.minimum_stock, i.expiration_date || '-', i.location || '-']))}${smallTable('Expired', ['Name', 'Quantity', 'Unit', 'Minimum', 'Expired', 'Location'], (expired.data || []).map((i) => [i.name, i.quantity, i.unit || '-', i.minimum_stock, i.expiration_date || '-', i.location || '-']))}${smallTable('Low Stock', ['Name', 'Quantity', 'Unit', 'Minimum', 'Expires', 'Location'], (lowStock.data || []).map((i) => [i.name, i.quantity, i.unit || '-', i.minimum_stock, i.expiration_date || '-', i.location || '-']))}</section>`);
 }
 
 function shortDateTime(value) {
@@ -350,10 +351,16 @@ function shortDateTime(value) {
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
+function shortText(value, limit = 90) {
+    const text = String(value ?? '');
+    return text.length > limit ? `${text.slice(0, limit)}...` : text;
+}
+
 function stockRows(items) {
     return (items || []).map((item) => [
         item.name,
-        `${item.quantity} ${item.unit || ''}`,
+        item.quantity,
+        item.unit || '-',
         item.minimum_stock,
         item.expiration_date || '-',
         item.location || '-',
@@ -384,7 +391,7 @@ async function renderReports() {
         shortDateTime(log.sent_at || log.created_at),
     ]);
 
-    setView(`<section class="metrics">${metric('Total items', num(s.total_items))}${metric('Total quantity', num(s.total_quantity))}${metric('Out of stock', num(s.out_of_stock_count))}${metric('Low stock', num(s.low_stock_count))}${metric('Expired', num(s.expired_count))}${metric('Expiring soon', num(s.expiring_soon_count))}</section><section class="grid-3">${smallTable('Out of Stock', ['Name', 'Qty', 'Minimum', 'Expires', 'Location'], stockRows(stock.out_of_stock))}${smallTable('Low Stock', ['Name', 'Qty', 'Minimum', 'Expires', 'Location'], stockRows(stock.low_stock))}${smallTable('In Stock', ['Name', 'Qty', 'Minimum', 'Expires', 'Location'], stockRows(stock.in_stock))}</section><section class="grid-2">${smallTable('Recent Activity', ['Action', 'Module', 'Description', 'Date'], activityRows)}${smallTable('Notification History', ['Type', 'Channel', 'Status', 'Recipient', 'Date'], notificationRows)}</section>`);
+    setView(`<section class="metrics">${metric('Total items', num(s.total_items))}${metric('Total quantity', num(s.total_quantity))}${metric('Out of stock', num(s.out_of_stock_count))}${metric('Low stock', num(s.low_stock_count))}${metric('Expired', num(s.expired_count))}${metric('Expiring soon', num(s.expiring_soon_count))}</section><section class="grid-3">${smallTable('Out of Stock', ['Name', 'Quantity', 'Unit', 'Minimum', 'Expires', 'Location'], stockRows(stock.out_of_stock))}${smallTable('Low Stock', ['Name', 'Quantity', 'Unit', 'Minimum', 'Expires', 'Location'], stockRows(stock.low_stock))}${smallTable('In Stock', ['Name', 'Quantity', 'Unit', 'Minimum', 'Expires', 'Location'], stockRows(stock.in_stock))}</section><section class="grid-2">${smallTable('Recent Activity', ['Action', 'Module', 'Description', 'Date'], activityRows)}${smallTable('Notification History', ['Type', 'Channel', 'Status', 'Recipient', 'Date'], notificationRows)}</section>`);
 }
 
 async function renderLookup() {
@@ -422,8 +429,43 @@ async function handleJsonForm(event, targetId, callback) {
     });
 }
 
+function sanitizePreviewHtml(html) {
+    const template = document.createElement('template');
+    template.innerHTML = html || '';
+    template.content.querySelectorAll('script, iframe, object, embed, link, meta').forEach((node) => node.remove());
+    template.content.querySelectorAll('*').forEach((node) => {
+        [...node.attributes].forEach((attribute) => {
+            const name = attribute.name.toLowerCase();
+            const value = attribute.value.trim().toLowerCase();
+            const dangerousUrl = ['href', 'src', 'xlink:href'].includes(name) && value.startsWith('javascript:');
+
+            if (name.startsWith('on') || dangerousUrl) {
+                node.removeAttribute(attribute.name);
+            }
+        });
+    });
+
+    return template.innerHTML;
+}
+
+function showHtmlPreview(html) {
+    const preview = document.getElementById('brevoPreview');
+    if (!preview) return;
+
+    const safeHtml = sanitizePreviewHtml(html);
+
+    if (!safeHtml.trim()) {
+        preview.classList.add('empty');
+        preview.textContent = 'Write HTML to preview the email output before sending.';
+        return;
+    }
+
+    preview.classList.remove('empty');
+    preview.innerHTML = safeHtml;
+}
+
 async function renderAlerts() {
-    setView(`<section class="grid-3"><article class="panel"><div class="panel-header"><h3 class="panel-title">Telegram</h3></div><div class="panel-body"><form id="telegramForm" class="form-stack"><label class="field"><span>Chat ID</span><input class="input" name="chat_id" placeholder="Use configured default if blank"></label><label class="field"><span>Message</span><textarea name="message" required>SmartExpiryItem UI alert.</textarea></label><label class="field"><span>Parse mode</span><select name="parse_mode"><option value="">Plain text</option><option value="HTML">HTML</option><option value="Markdown">Markdown</option><option value="MarkdownV2">MarkdownV2</option></select></label><button class="btn primary">Send Alert</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">Brevo Email</h3></div><div class="panel-body"><form id="brevoForm" class="form-stack"><label class="field"><span>To email</span><input class="input" name="to_email" type="email" value="${esc(state.user?.email || '')}" required></label><label class="field"><span>To name</span><input class="input" name="to_name" value="${esc(state.user?.name || '')}"></label><label class="field"><span>Subject</span><input class="input" name="subject" value="SmartExpiryItem test email" required></label><label class="field"><span>Message</span><textarea name="text_content" required>SmartExpiryItem Brevo email test.</textarea></label><button class="btn primary">Send Email</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">Inventory Alerts</h3></div><div class="panel-body btn-row"><button class="btn primary" data-alert="low" type="button">Low Stock</button><button class="btn primary" data-alert="expiry" type="button">Expiring Soon</button></div></article></section><section class="panel"><div class="panel-header"><h3 class="panel-title">Last Response</h3></div><div class="panel-body"><pre id="alertResult" class="result-box">{}</pre></div></section><section class="panel"><div class="panel-header"><h3 class="panel-title">Notifications</h3></div><div id="notifications" class="panel-body table-wrap"></div></section>`);
+    setView(`<section class="grid-3"><article class="panel"><div class="panel-header"><h3 class="panel-title">Telegram</h3></div><div class="panel-body"><form id="telegramForm" class="form-stack"><label class="field"><span>Chat ID</span><input class="input" name="chat_id" placeholder="Use configured default if blank"></label><label class="field"><span>Message</span><textarea name="message" required>SmartExpiryItem UI alert.</textarea></label><label class="field"><span>Parse mode</span><select name="parse_mode"><option value="">Plain text</option><option value="HTML">HTML</option><option value="Markdown">Markdown</option><option value="MarkdownV2">MarkdownV2</option></select></label><button class="btn primary">Send Alert</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">Brevo Email</h3></div><div class="panel-body"><form id="brevoForm" class="form-stack"><label class="field"><span>To email</span><input class="input" name="to_email" type="email" value="${esc(state.user?.email || '')}" required></label><label class="field"><span>To name</span><input class="input" name="to_name" value="${esc(state.user?.name || '')}"></label><label class="field"><span>Subject</span><input class="input" name="subject" value="SmartExpiryItem test email" required></label><label class="field"><span>Message</span><textarea id="brevoHtmlContent" name="html_content" required><p style="background-color:blue;color:white;padding:12px;">SmartExpiryItem Brevo email test.</p></textarea></label><div class="html-preview-wrap"><div class="field-label">Rendered Preview Before Send</div><div id="brevoPreview" class="html-preview empty">Write HTML to preview the email output before sending.</div></div><button class="btn primary">Send Email</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">Inventory Alerts</h3></div><div class="panel-body btn-row"><button class="btn primary" data-alert="low" type="button">Low Stock</button><button class="btn primary" data-alert="expiry" type="button">Expiring Soon</button></div></article></section><section class="panel"><div class="panel-header"><h3 class="panel-title">Last Response</h3></div><div class="panel-body"><pre id="alertResult" class="result-box">{}</pre></div></section><section class="panel"><div class="panel-header"><h3 class="panel-title">Notifications</h3></div><div id="notifications" class="panel-body table-wrap"></div></section>`);
     document.getElementById('telegramForm').addEventListener('submit', async (event) => {
         event.preventDefault();
         await runForm(event.currentTarget, 'Sending', async () => {
@@ -441,17 +483,27 @@ async function renderAlerts() {
     document.getElementById('brevoForm').addEventListener('submit', async (event) => {
         event.preventDefault();
         await runForm(event.currentTarget, 'Sending', async () => {
+            const data = formData(event.currentTarget);
+            const htmlContent = data.html_content || '';
+            showHtmlPreview(htmlContent);
+
             try {
-                const response = await api('/brevo/send-email', { method: 'POST', body: formData(event.currentTarget) });
+                const response = await api('/brevo/send-email', { method: 'POST', body: data });
                 showJson(response, 'alertResult');
-                toast('Brevo email sent.');
+                toast(response.message || 'Email sent successfully.');
                 await loadNotifications();
             } catch (error) {
                 showError(error, 'alertResult');
                 toast(errorMessage(error), 'error');
+                await loadNotifications();
             }
         });
     });
+    const brevoHtmlContent = document.getElementById('brevoHtmlContent');
+    if (brevoHtmlContent) {
+        showHtmlPreview(brevoHtmlContent.value);
+        brevoHtmlContent.addEventListener('input', () => showHtmlPreview(brevoHtmlContent.value));
+    }
     document.querySelectorAll('[data-alert]').forEach((button) => button.addEventListener('click', async () => {
         const endpoint = button.dataset.alert === 'low' ? '/alerts/low-stock' : '/alerts/expiring-soon';
         const body = button.dataset.alert === 'low' ? { channels: ['telegram'] } : { channels: ['telegram'], days: 30 };
@@ -470,8 +522,8 @@ async function renderAlerts() {
 
 async function loadNotifications() {
     const response = await api('/notifications?per_page=10').catch(() => ({ data: [] }));
-    const rows = (response.data || []).map((item) => `<tr><td>${esc(item.type)}</td><td>${esc(item.channel)}</td><td><span class="badge ${item.status === 'sent' ? 'good' : 'danger'}">${esc(item.status)}</span></td><td>${esc(item.recipient || '-')}</td></tr>`).join('') || '<tr><td colspan="4" class="empty-state">No records</td></tr>';
-    document.getElementById('notifications').innerHTML = `<table><thead><tr><th>Type</th><th>Channel</th><th>Status</th><th>Recipient</th></tr></thead><tbody>${rows}</tbody></table>`;
+    const rows = (response.data || []).map((item) => `<tr><td>${esc(item.type)}</td><td>${esc(item.channel)}</td><td><span class="badge ${item.status === 'sent' ? 'good' : 'danger'}">${esc(item.status)}</span></td><td>${esc(item.recipient || '-')}</td><td>${esc(shortText(item.message || '-'))}</td><td>${esc(shortDateTime(item.sent_at || item.created_at))}</td></tr>`).join('') || '<tr><td colspan="6" class="empty-state">No records</td></tr>';
+    document.getElementById('notifications').innerHTML = `<table><thead><tr><th>Type</th><th>Channel</th><th>Status</th><th>Recipient</th><th>Message</th><th>Timestamp</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 async function renderAdmin() {
