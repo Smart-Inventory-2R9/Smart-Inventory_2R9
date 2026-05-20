@@ -16,5 +16,13 @@
         </main>
     </div>
     <script src="{{ asset('ui.js') }}?v={{ filemtime(public_path('ui.js')) }}" defer></script>
+    <script>
+        window.setTimeout(function () {
+            var app = document.getElementById('app');
+            if (!window.__SmartExpiryBooted && app) {
+                app.innerHTML = '<main class="auth-layout"><section class="auth-panel"><div class="brand-row"><div class="brand-mark">SI</div><div><h1 class="brand-title">SmartExpiryItem</h1><p class="brand-subtitle">UI script did not start</p></div></div><div class="empty-state">Refresh the page. If this message stays, open /ui.js to confirm the deployed UI asset exists.</div></section></main>';
+            }
+        }, 2500);
+    </script>
 </body>
 </html>

@@ -1,9 +1,19 @@
 
+function showStartupError(error) {
+    const mount = document.getElementById('app') || document.body;
+    const message = error?.message || String(error || 'Unknown startup error');
+    mount.innerHTML = `<main class="auth-layout"><section class="auth-panel"><div class="brand-row"><div class="brand-mark">SI</div><div><h1 class="brand-title">SmartExpiryItem</h1><p class="brand-subtitle">Startup failed</p></div></div><div class="empty-state">${String(message).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</div></section></main>`;
+}
+
+window.addEventListener('error', (event) => showStartupError(event.error || event.message));
+window.addEventListener('unhandledrejection', (event) => showStartupError(event.reason));
+
 const root = document.getElementById('app');
 if (!root) {
     throw new Error('SmartExpiryItem root element was not found.');
 }
 
+window.__SmartExpiryBooted = true;
 root.innerHTML = '<main class="boot-screen"><div class="loading-state">Loading SmartExpiryItem</div></main>';
 
 const apiBase = root.dataset.apiBase || `${window.location.origin}/api`;
@@ -609,12 +619,13 @@ async function restoreUser(id) {
 }
 
 async function boot() {
-    try {
-        if (!state.token) {
-            renderAuth();
-            return;
-        }
+    renderAuth();
 
+    if (!state.token) {
+        return;
+    }
+
+    try {
         const profile = await api('/me');
         state.user = profile.user;
         state.isAdmin = await checkAdmin();
