@@ -5,6 +5,7 @@
     },
     "deploy": {
         "preDeployCommand": "chmod +x ./railway/init-app.sh && sh ./railway/init-app.sh",
+        "startCommand": "php artisan serve --host=0.0.0.0 --port=${PORT}",
         "healthcheckPath": "/api/health",
         "healthcheckTimeout": 300,
         "restartPolicyType": "ON_FAILURE",
