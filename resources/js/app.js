@@ -24,6 +24,7 @@ const state = {
     isAdmin: false,
     page: 'dashboard',
     inventoryItems: [],
+    alertPayloads: [],
     sidebarHidden: localStorage.getItem('smartExpirySidebarHidden') === 'true',
 };
 
@@ -405,26 +406,217 @@ async function renderReports() {
     setView(`<section class="metrics">${metric('Total items', num(s.total_items))}${metric('Total quantity', num(s.total_quantity))}${metric('Out of stock', num(s.out_of_stock_count))}${metric('Low stock', num(s.low_stock_count))}${metric('Expired', num(s.expired_count))}${metric('Expiring soon', num(s.expiring_soon_count))}</section><section class="grid-3">${smallTable('Out of Stock', ['Name', 'Quantity', 'Unit', 'Minimum', 'Expires', 'Location'], stockRows(stock.out_of_stock))}${smallTable('Low Stock', ['Name', 'Quantity', 'Unit', 'Minimum', 'Expires', 'Location'], stockRows(stock.low_stock))}${smallTable('In Stock', ['Name', 'Quantity', 'Unit', 'Minimum', 'Expires', 'Location'], stockRows(stock.in_stock))}</section><section class="grid-2">${smallTable('Recent Activity', ['Action', 'Module', 'Description', 'Date'], activityRows)}${smallTable('Notification History', ['Type', 'Channel', 'Status', 'Recipient', 'Date'], notificationRows)}</section>`);
 }
 
+function asArray(value) {
+    if (Array.isArray(value)) return value;
+    return value ? [value] : [];
+}
+
+function firstFilled(...values) {
+    return values.find((value) => value !== undefined && value !== null && String(value).trim() !== '') || '';
+}
+
+function safeObject(value) {
+    if (!value) return {};
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value);
+        } catch {
+            return {};
+        }
+    }
+
+    return typeof value === 'object' ? value : {};
+}
+
+function syntaxHighlightJson(data) {
+    const json = esc(JSON.stringify(data ?? {}, null, 2));
+
+    return json
+        .replace(/(&quot;[^&]*?&quot;)(?=:)/g, '<span class="json-key">$1</span>')
+        .replace(/: (&quot;[^&]*?&quot;)/g, ': <span class="json-string">$1</span>')
+        .replace(/: (-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)/gi, ': <span class="json-number">$1</span>')
+        .replace(/: (true|false)/g, ': <span class="json-bool">$1</span>')
+        .replace(/: (null)/g, ': <span class="json-null">$1</span>');
+}
+
+function rawJsonAccordion(id, data, label = 'View Raw JSON') {
+    return `<div class="raw-json-wrap"><button class="btn small raw-toggle" data-json-toggle="${esc(id)}" type="button">${label}</button><div id="${esc(id)}" class="json-accordion hidden"><pre class="json-code">${syntaxHighlightJson(data)}</pre></div></div>`;
+}
+
+function bindJsonToggles(scope = document) {
+    scope.querySelectorAll('[data-json-toggle]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const panel = document.getElementById(button.dataset.jsonToggle);
+            if (!panel) return;
+            panel.classList.toggle('hidden');
+            button.textContent = panel.classList.contains('hidden') ? 'View Raw JSON' : 'Hide Raw JSON';
+        });
+    });
+}
+
+function openJsonModal(title, payload) {
+    document.querySelector('.modal-backdrop')?.remove();
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop';
+    modal.innerHTML = `<section class="json-modal" role="dialog" aria-modal="true"><div class="modal-header"><div><h3>${esc(title)}</h3><p>Exact payload used by this row.</p></div><button class="btn small" data-modal-close type="button">Close</button></div><div class="modal-body"><pre class="json-code">${syntaxHighlightJson(payload)}</pre></div></section>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal || event.target.closest('[data-modal-close]')) modal.remove();
+    });
+}
+
+function mealIngredients(meal) {
+    return Array.from({ length: 20 }, (_, index) => {
+        const number = index + 1;
+        const ingredient = meal[`strIngredient${number}`];
+        const measure = meal[`strMeasure${number}`];
+        return ingredient ? `${measure ? `${measure} ` : ''}${ingredient}`.trim() : '';
+    }).filter(Boolean);
+}
+
+function nutritionBadgesFromProduct(product, raw) {
+    const nutriments = safeObject(raw.nutriments);
+    const badges = [
+        product.nutrition_grade ? `Grade ${String(product.nutrition_grade).toUpperCase()}` : '',
+        nutriments.energy ? `Energy ${nutriments.energy}` : '',
+        nutriments.proteins ? `Protein ${nutriments.proteins}g` : '',
+        nutriments.carbohydrates ? `Carbs ${nutriments.carbohydrates}g` : '',
+        nutriments.fat ? `Fat ${nutriments.fat}g` : '',
+    ].filter(Boolean);
+
+    return badges.map((badge) => `<span class="nutri-badge">${esc(badge)}</span>`).join('');
+}
+
+function nutritionBadgesFromUsda(food) {
+    const wanted = ['energy', 'protein', 'carbohydrate', 'total lipid', 'fat', 'fiber', 'sugars'];
+    return asArray(food.foodNutrients)
+        .filter((nutrient) => wanted.some((name) => String(nutrient.nutrientName || '').toLowerCase().includes(name)))
+        .slice(0, 6)
+        .map((nutrient) => `<span class="nutri-badge">${esc(nutrient.nutrientName)} ${esc(nutrient.value ?? nutrient.amount ?? '')}${esc(nutrient.unitName || '')}</span>`)
+        .join('');
+}
+
+function foodImage(src, title) {
+    if (src) return `<img class="food-image" src="${esc(src)}" alt="${esc(title || 'Food item')}" loading="lazy">`;
+    const initials = String(title || 'Food').split(/\s+/).slice(0, 2).map((word) => word[0] || '').join('').toUpperCase();
+    return `<div class="image-placeholder">${esc(initials || 'SI')}</div>`;
+}
+
+function renderFoodCard({ title, subtitle, image, meta = [], badges = '', ingredients = [], steps = [], payload }) {
+    const rawId = `lookup-raw-${Math.random().toString(36).slice(2)}`;
+    return `<article class="food-card"><div class="food-card-media">${foodImage(image, title)}</div><div class="food-card-body"><div class="food-card-head"><div><h4>${esc(title || 'Food item')}</h4>${subtitle ? `<p>${esc(subtitle)}</p>` : ''}</div></div>${meta.length ? `<dl class="meta-grid">${meta.filter((item) => item.value).map((item) => `<div><dt>${esc(item.label)}</dt><dd>${esc(item.value)}</dd></div>`).join('')}</dl>` : ''}${badges ? `<div class="pill-row">${badges}</div>` : ''}${ingredients.length ? `<div class="food-section"><strong>Ingredients</strong><div class="ingredient-grid">${ingredients.slice(0, 16).map((item) => `<span>${esc(item)}</span>`).join('')}</div></div>` : ''}${steps.length ? `<div class="food-section"><strong>Preparation</strong><ol class="step-list">${steps.slice(0, 4).map((step) => `<li>${esc(step)}</li>`).join('')}</ol></div>` : ''}${rawJsonAccordion(rawId, payload)}</div></article>`;
+}
+
+function lookupCards(data) {
+    const cards = [];
+
+    if (data?.food_product) {
+        const product = data.food_product;
+        const raw = safeObject(product.raw_data);
+        cards.push(renderFoodCard({
+            title: firstFilled(product.product_name, raw.product_name, 'Open Food Facts product'),
+            subtitle: firstFilled(product.brand, raw.brands, product.categories, raw.categories),
+            image: firstFilled(product.image_url, raw.image_url),
+            meta: [
+                { label: 'Barcode', value: firstFilled(product.barcode, raw.code) },
+                { label: 'Brand', value: firstFilled(product.brand, raw.brands) },
+                { label: 'Category', value: firstFilled(product.categories, raw.categories) },
+            ],
+            badges: nutritionBadgesFromProduct(product, raw),
+            ingredients: String(firstFilled(raw.ingredients_text, raw.ingredients_text_en)).split(',').map((item) => item.trim()).filter(Boolean),
+            payload: data,
+        }));
+    }
+
+    asArray(data?.foods).slice(0, 6).forEach((food) => {
+        cards.push(renderFoodCard({
+            title: firstFilled(food.description, food.lowercaseDescription, 'USDA food item'),
+            subtitle: firstFilled(food.brandOwner, food.brandName, food.foodCategory, food.dataType),
+            image: '',
+            meta: [
+                { label: 'FDC ID', value: food.fdcId },
+                { label: 'Category', value: food.foodCategory },
+                { label: 'Data type', value: food.dataType },
+            ],
+            badges: nutritionBadgesFromUsda(food),
+            payload: food,
+        }));
+    });
+
+    asArray(data?.meals).slice(0, 8).forEach((meal) => {
+        const steps = String(meal.strInstructions || '').split(/\r?\n|\. /).map((step) => step.trim()).filter(Boolean);
+        cards.push(renderFoodCard({
+            title: firstFilled(meal.strMeal, 'Meal result'),
+            subtitle: [meal.strCategory, meal.strArea].filter(Boolean).join(' | '),
+            image: meal.strMealThumb,
+            meta: [
+                { label: 'Meal ID', value: meal.idMeal },
+                { label: 'Category', value: meal.strCategory },
+                { label: 'Area', value: meal.strArea },
+            ],
+            ingredients: mealIngredients(meal),
+            steps,
+            payload: meal,
+        }));
+    });
+
+    return cards;
+}
+
+function renderLookupResult(data) {
+    const target = document.getElementById('lookupResult');
+    if (!target) return;
+
+    const cards = lookupCards(data);
+    const rawId = `lookup-response-${Date.now()}`;
+
+    if (!cards.length) {
+        target.innerHTML = `<div class="lookup-empty"><h4>No mapped food result</h4><p>The response was valid, but it did not include a known product, food, or meal structure.</p>${rawJsonAccordion(rawId, data)}</div>`;
+        bindJsonToggles(target);
+        return;
+    }
+
+    target.innerHTML = `<div class="lookup-result-head"><div><h3>Food Lookup Result</h3><p>${num(cards.length)} mapped item${cards.length > 1 ? 's' : ''} from the API response.</p></div>${rawJsonAccordion(rawId, data)}</div><div class="lookup-grid">${cards.join('')}</div>`;
+    bindJsonToggles(target);
+}
+
 async function renderLookup() {
-    setView(`<section class="grid-3"><article class="panel"><div class="panel-header"><h3 class="panel-title">Open Food Facts</h3></div><div class="panel-body"><form id="offForm" class="form-stack"><label class="field"><span>Barcode</span><input class="input" name="barcode" value="3017620422003" required></label><button class="btn primary">Search</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">USDA</h3></div><div class="panel-body"><form id="usdaForm" class="form-stack"><label class="field"><span>Query</span><input class="input" name="query" value="apple" required></label><button class="btn primary">Search</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">Meal Search</h3></div><div class="panel-body"><form id="mealSearchForm" class="form-stack"><label class="field"><span>Meal name</span><input class="input" name="query" value="chicken" required></label><button class="btn primary">Search</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">Meal Ingredient</h3></div><div class="panel-body"><form id="mealIngredientForm" class="form-stack"><label class="field"><span>Ingredient</span><input class="input" name="ingredient" value="chicken_breast" required></label><button class="btn primary">Filter</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">Meal Lookup</h3></div><div class="panel-body"><form id="mealLookupForm" class="form-stack"><label class="field"><span>Meal ID</span><input class="input" name="meal_id" value="52772" required></label><button class="btn primary">Lookup</button></form></div></article></section><section class="panel"><div class="panel-header"><h3 class="panel-title">Result</h3></div><div class="panel-body"><pre id="lookupResult" class="result-box">{}</pre></div></section>`);
+    setView(`<section class="grid-3"><article class="panel"><div class="panel-header"><h3 class="panel-title">Open Food Facts</h3></div><div class="panel-body"><form id="offForm" class="form-stack"><label class="field"><span>Barcode</span><input class="input" name="barcode" value="3017620422003" required></label><button class="btn primary">Search</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">USDA</h3></div><div class="panel-body"><form id="usdaForm" class="form-stack"><label class="field"><span>Query</span><input class="input" name="query" value="apple" required></label><button class="btn primary">Search</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">Meal Search</h3></div><div class="panel-body"><form id="mealSearchForm" class="form-stack"><label class="field"><span>Meal name</span><input class="input" name="query" value="chicken" required></label><button class="btn primary">Search</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">Meal Ingredient</h3></div><div class="panel-body"><form id="mealIngredientForm" class="form-stack"><label class="field"><span>Ingredient</span><input class="input" name="ingredient" value="chicken_breast" required></label><button class="btn primary">Filter</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">Meal Lookup</h3></div><div class="panel-body"><form id="mealLookupForm" class="form-stack"><label class="field"><span>Meal ID</span><input class="input" name="meal_id" value="52772" required></label><button class="btn primary">Lookup</button></form></div></article></section><section class="panel"><div class="panel-header"><h3 class="panel-title">Result</h3></div><div id="lookupResult" class="panel-body lookup-result"><div class="lookup-empty"><h4>Search for a food item</h4><p>Results will render as product or meal cards with images, nutrition details, ingredients, and raw JSON toggles.</p></div></div></section>`);
     document.getElementById('offForm').addEventListener('submit', (event) => handleJsonForm(event, 'lookupResult', (data) => api(`/open-food-facts/${encodeURIComponent(data.barcode)}`)));
-    document.getElementById('usdaForm').addEventListener('submit', (event) => handleJsonForm(event, 'lookupResult', (data) => api('/usda/lookup', { method: 'POST', body: { query: data.query, page_size: 3, page_number: 1, data_type: ['Foundation'] } })));
+    document.getElementById('usdaForm').addEventListener('submit', (event) => handleJsonForm(event, 'lookupResult', (data) => api('/usda/lookup', { method: 'POST', body: { query: data.query, page_size: 6, page_number: 1, data_type: ['Foundation'] } })));
     document.getElementById('mealSearchForm').addEventListener('submit', (event) => handleJsonForm(event, 'lookupResult', (data) => api('/mealdb/search', { method: 'POST', body: data })));
     document.getElementById('mealIngredientForm').addEventListener('submit', (event) => handleJsonForm(event, 'lookupResult', (data) => api('/mealdb/filter-by-ingredient', { method: 'POST', body: data })));
     document.getElementById('mealLookupForm').addEventListener('submit', (event) => handleJsonForm(event, 'lookupResult', (data) => api('/mealdb/lookup', { method: 'POST', body: data })));
 }
 
 function showJson(data, targetId = 'lookupResult') {
+    if (targetId === 'lookupResult') {
+        renderLookupResult(data);
+        return;
+    }
+
     const target = document.getElementById(targetId);
     if (target) target.textContent = JSON.stringify(data, null, 2);
 }
 
 function showError(error, targetId = 'lookupResult') {
-    showJson({
+    const payload = {
         message: errorMessage(error),
         status: error?.status || 'network_error',
         errors: error?.data?.errors || null,
-    }, targetId);
+    };
+
+    if (targetId === 'lookupResult') {
+        const target = document.getElementById(targetId);
+        if (target) {
+            const rawId = `lookup-error-${Date.now()}`;
+            target.innerHTML = `<div class="lookup-empty error-state"><h4>Lookup failed</h4><p>${esc(payload.message)}</p>${rawJsonAccordion(rawId, payload)}</div>`;
+            bindJsonToggles(target);
+        }
+        return;
+    }
+
+    showJson(payload, targetId);
 }
 
 async function handleJsonForm(event, targetId, callback) {
@@ -475,18 +667,110 @@ function showHtmlPreview(html) {
     preview.innerHTML = safeHtml;
 }
 
+function daysUntil(dateValue) {
+    if (!dateValue) return null;
+    const today = new Date();
+    const target = new Date(dateValue);
+    if (Number.isNaN(target.getTime())) return null;
+    today.setHours(0, 0, 0, 0);
+    target.setHours(0, 0, 0, 0);
+    return Math.ceil((target - today) / 86400000);
+}
+
+function alertStatusForItem(item, type) {
+    if (type === 'low_stock') return { label: 'Low stock', className: 'warn' };
+
+    const days = daysUntil(item.expiration_date);
+    if (days !== null && days < 0) return { label: 'Expired', className: 'danger' };
+    if (days !== null && days < 3) return { label: `${days} day${days === 1 ? '' : 's'}`, className: 'danger' };
+    if (days !== null && days < 7) return { label: `${days} days`, className: 'warn' };
+    return { label: 'Expiring soon', className: 'soft' };
+}
+
+function alertRow(row, index) {
+    const item = row.item;
+    const status = alertStatusForItem(item, row.type);
+    return `<article class="alert-row"><div class="alert-main"><div><h4>${esc(item.name)}</h4><p>${esc(item.location || 'No location set')}</p></div><span class="status-badge ${status.className}">${esc(status.label)}</span></div><div class="alert-details"><div><span>Expiry date</span><strong>${esc(item.expiration_date || '-')}</strong></div><div><span>Quantity</span><strong>${num(item.quantity)} ${esc(item.unit || '')}</strong></div><div><span>Minimum</span><strong>${num(item.minimum_stock)}</strong></div><button class="btn small" data-alert-payload="${index}" type="button">View Payload</button></div></article>`;
+}
+
+async function loadSystemAlerts() {
+    const container = document.getElementById('systemAlerts');
+    if (!container) return;
+
+    container.innerHTML = '<div class="loading-state">Loading alerts</div>';
+
+    try {
+        const [expired, expiringSoon, lowStock] = await Promise.all([
+            api('/inventory/expired'),
+            api('/inventory/expiring-soon?days=7'),
+            api('/inventory/low-stock'),
+        ]);
+
+        const alerts = [
+            ...asArray(expired.data).map((item) => ({ type: 'expired', item })),
+            ...asArray(expiringSoon.data).map((item) => ({ type: 'expiring_soon', item })),
+            ...asArray(lowStock.data).map((item) => ({ type: 'low_stock', item })),
+        ];
+
+        state.alertPayloads = alerts.map((alert) => ({
+            type: alert.type,
+            item: alert.item,
+            generated_at: new Date().toISOString(),
+        }));
+
+        if (!alerts.length) {
+            container.innerHTML = '<div class="lookup-empty"><h4>No active inventory alerts</h4><p>Expired, expiring-soon, and low-stock items will appear here with their payloads.</p></div>';
+            return;
+        }
+
+        container.innerHTML = `<div class="alert-list">${alerts.map(alertRow).join('')}</div>`;
+        container.querySelectorAll('[data-alert-payload]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const payload = state.alertPayloads[Number(button.dataset.alertPayload)];
+                openJsonModal('Alert Payload', payload);
+            });
+        });
+    } catch (error) {
+        container.innerHTML = `<div class="lookup-empty error-state"><h4>Unable to load alerts</h4><p>${esc(errorMessage(error))}</p></div>`;
+    }
+}
+
+function renderAlertActionResponse(response) {
+    const target = document.getElementById('alertResult');
+    if (!target) return;
+
+    const rawId = `alert-response-${Date.now()}`;
+    const sent = Object.entries(response.alerts_sent || {}).map(([channel, result]) => `${channel}: HTTP ${result.status || '-'}`);
+    target.innerHTML = `<div class="action-result-card"><div><h4>${esc(response.message || 'Action completed')}</h4><p>${sent.length ? esc(sent.join(' | ')) : 'Response received from the API.'}</p></div>${rawJsonAccordion(rawId, response)}</div>`;
+    bindJsonToggles(target);
+}
+
+function renderAlertActionError(error) {
+    const target = document.getElementById('alertResult');
+    if (!target) return;
+
+    const payload = {
+        message: errorMessage(error),
+        status: error?.status || 'network_error',
+        errors: error?.data?.errors || null,
+    };
+    const rawId = `alert-error-${Date.now()}`;
+    target.innerHTML = `<div class="action-result-card error-state"><div><h4>Action failed</h4><p>${esc(payload.message)}</p></div>${rawJsonAccordion(rawId, payload)}</div>`;
+    bindJsonToggles(target);
+}
+
 async function renderAlerts() {
-    setView(`<section class="grid-3"><article class="panel"><div class="panel-header"><h3 class="panel-title">Telegram</h3></div><div class="panel-body"><form id="telegramForm" class="form-stack"><label class="field"><span>Chat ID</span><input class="input" name="chat_id" placeholder="Use configured default if blank"></label><label class="field"><span>Message</span><textarea name="message" required>SmartExpiryItem UI alert.</textarea></label><label class="field"><span>Parse mode</span><select name="parse_mode"><option value="">Plain text</option><option value="HTML">HTML</option><option value="Markdown">Markdown</option><option value="MarkdownV2">MarkdownV2</option></select></label><button class="btn primary">Send Alert</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">Brevo Email</h3></div><div class="panel-body"><form id="brevoForm" class="form-stack"><label class="field"><span>To email</span><input class="input" name="to_email" type="email" value="${esc(state.user?.email || '')}" required></label><label class="field"><span>To name</span><input class="input" name="to_name" value="${esc(state.user?.name || '')}"></label><label class="field"><span>Subject</span><input class="input" name="subject" value="SmartExpiryItem test email" required></label><label class="field"><span>Message</span><textarea id="brevoHtmlContent" name="html_content" required><p style="background-color:blue;color:white;padding:12px;">SmartExpiryItem Brevo email test.</p></textarea></label><div class="html-preview-wrap"><div class="field-label">Rendered Preview Before Send</div><div id="brevoPreview" class="html-preview empty">Write HTML to preview the email output before sending.</div></div><button class="btn primary">Send Email</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">Inventory Alerts</h3></div><div class="panel-body btn-row"><button class="btn primary" data-alert="low" type="button">Low Stock</button><button class="btn primary" data-alert="expiry" type="button">Expiring Soon</button></div></article></section><section class="panel"><div class="panel-header"><h3 class="panel-title">Last Response</h3></div><div class="panel-body"><pre id="alertResult" class="result-box">{}</pre></div></section><section class="panel"><div class="panel-header"><h3 class="panel-title">Notifications</h3></div><div id="notifications" class="panel-body table-wrap"></div></section>`);
+    setView(`<section class="grid-3"><article class="panel"><div class="panel-header"><h3 class="panel-title">Telegram</h3></div><div class="panel-body"><form id="telegramForm" class="form-stack"><label class="field"><span>Chat ID</span><input class="input" name="chat_id" placeholder="Use configured default if blank"></label><label class="field"><span>Message</span><textarea name="message" required>SmartExpiryItem UI alert.</textarea></label><label class="field"><span>Parse mode</span><select name="parse_mode"><option value="">Plain text</option><option value="HTML">HTML</option><option value="Markdown">Markdown</option><option value="MarkdownV2">MarkdownV2</option></select></label><button class="btn primary">Send Alert</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">Brevo Email</h3></div><div class="panel-body"><form id="brevoForm" class="form-stack"><label class="field"><span>To email</span><input class="input" name="to_email" type="email" value="${esc(state.user?.email || '')}" required></label><label class="field"><span>To name</span><input class="input" name="to_name" value="${esc(state.user?.name || '')}"></label><label class="field"><span>Subject</span><input class="input" name="subject" value="SmartExpiryItem test email" required></label><label class="field"><span>Message</span><textarea id="brevoHtmlContent" name="html_content" required><p style="background-color:blue;color:white;padding:12px;">SmartExpiryItem Brevo email test.</p></textarea></label><div class="html-preview-wrap"><div class="field-label">Rendered Preview Before Send</div><div id="brevoPreview" class="html-preview empty">Write HTML to preview the email output before sending.</div></div><button class="btn primary">Send Email</button></form></div></article><article class="panel"><div class="panel-header"><h3 class="panel-title">Inventory Alert Sender</h3></div><div class="panel-body btn-row"><button class="btn primary" data-alert="low" type="button">Send Low Stock</button><button class="btn primary" data-alert="expiry" type="button">Send Expiring Soon</button></div></article></section><section class="panel"><div class="panel-header"><div><h3 class="panel-title">System Alerts</h3><p class="panel-subtitle">Inventory items needing attention with raw payload access.</p></div><button id="refreshSystemAlerts" class="btn small" type="button">Refresh</button></div><div id="systemAlerts" class="panel-body"><div class="loading-state">Loading alerts</div></div></section><section class="panel"><div class="panel-header"><h3 class="panel-title">Last Action</h3></div><div id="alertResult" class="panel-body"><div class="lookup-empty"><h4>No alert action yet</h4><p>Send a Telegram, Brevo, low-stock, or expiry alert to view the delivery response.</p></div></div></section><section class="panel"><div class="panel-header"><h3 class="panel-title">Notifications</h3></div><div id="notifications" class="panel-body table-wrap"></div></section>`);
     document.getElementById('telegramForm').addEventListener('submit', async (event) => {
         event.preventDefault();
         await runForm(event.currentTarget, 'Sending', async () => {
             try {
                 const response = await api('/telegram/send-alert', { method: 'POST', body: formData(event.currentTarget) });
-                showJson(response, 'alertResult');
+                renderAlertActionResponse(response);
                 toast('Telegram alert sent.');
                 await loadNotifications();
             } catch (error) {
-                showError(error, 'alertResult');
+                renderAlertActionError(error);
                 toast(errorMessage(error), 'error');
             }
         });
@@ -500,11 +784,11 @@ async function renderAlerts() {
 
             try {
                 const response = await api('/brevo/send-email', { method: 'POST', body: data });
-                showJson(response, 'alertResult');
+                renderAlertActionResponse(response);
                 toast(response.message || 'Email sent successfully.');
                 await loadNotifications();
             } catch (error) {
-                showError(error, 'alertResult');
+                renderAlertActionError(error);
                 toast(errorMessage(error), 'error');
                 await loadNotifications();
             }
@@ -520,14 +804,17 @@ async function renderAlerts() {
         const body = button.dataset.alert === 'low' ? { channels: ['telegram'] } : { channels: ['telegram'], days: 30 };
         try {
             const response = await api(endpoint, { method: 'POST', body });
-            showJson(response, 'alertResult');
+            renderAlertActionResponse(response);
             toast('Alert processed.');
             await loadNotifications();
+            await loadSystemAlerts();
         } catch (error) {
-            showError(error, 'alertResult');
+            renderAlertActionError(error);
             toast(errorMessage(error), 'error');
         }
     }));
+    document.getElementById('refreshSystemAlerts').addEventListener('click', loadSystemAlerts);
+    await loadSystemAlerts();
     await loadNotifications();
 }
 
